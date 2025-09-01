@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>太陽舎 業務マニュアル検索</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+        }
+        #searchInput:focus {
+            box-shadow: 0 0 0 2px #3b82f6;
+            outline: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-100">
+
+    <!-- 検索画面 -->
+    <div id="search-view" class="container mx-auto p-4 max-w-3xl">
+        <header class="text-center my-6">
+            <h1 class="text-3xl font-bold text-slate-800">業務マニュアル検索</h1>
+            <p class="text-slate-500 mt-2">キーワードでマニュアルを検索できます</p>
+        </header>
+
+        <main>
+            <div class="relative mb-6">
+                <input type="text" id="searchInput" placeholder="例： シミ抜き、タック、緊急時" class="w-full p-4 pl-12 text-lg border-2 border-slate-300 rounded-full transition-all duration-300 focus:border-blue-500">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+            </div>
+            <div id="results" class="space-y-2"></div>
+            <div id="no-results" class="text-center py-12 text-slate-500 hidden">
+                <p class="text-lg">該当するマニュアルが見つかりませんでした。</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- 画像表示画面 (最初は非表示) -->
+    <div id="viewer-view" class="hidden min-h-screen p-4 flex flex-col items-center justify-start">
+         <header class="w-full max-w-lg text-center my-6 relative">
+            <button id="backButton" class="absolute left-0 top-1/2 -translate-y-1/2 bg-slate-200 hover:bg-slate-300 rounded-full p-2 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-600"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            </button>
+            <h1 id="manualTitle" class="text-2xl font-bold text-slate-800 text-center"></h1>
+        </header>
+        <div class="w-full max-w-lg shadow-lg rounded-lg">
+            <img id="manualImage" src="" alt="マニュアル画像" class="w-full h-auto rounded-lg">
+        </div>
+    </div>
+
+    <script>
+        const manuals = [
+            // このリストの部分は、以前のファイルから変更ありません。
+            { title: 'ホイル巻き', keywords: ['ホイル', '貝ボタン', 'カギホック', 'アルミホイル', '保護', '破損防止'], imageUrl: 'https://i.ibb.co/W4nDc7jD/image.png' },
+            { title: 'ウエットクリーニング', keywords: ['ウエット', '汗', '水洗い', 'ゴワゴワ', '夏', 'ウェット', '汗抜き', 'ドライ', '追加料金'], imageUrl: 'https://i.ibb.co/F4jXpRCM/image.png' },
+            { title: 'オンリーワン（1点洗い）', keywords: ['オンリーワン', '1点洗い', '特別', '高級', 'ブランド', '個別洗い'], imageUrl: 'https://i.ibb.co/BvcbJyZ/image.png' },
+            { title: 'お客様要望書（クレーム）', keywords: ['クレーム', '要望書', '事務所', 'お客様', 'トラブル', '対応'], imageUrl: 'https://i.ibb.co/4RxkY3WK/image.png' },
+            { title: 'ヨメアザ・カビ', keywords: ['ヨメアザ', 'カビ', '菌', '3割増', '湿気', 'シミ抜き', '礼服', '植物'], imageUrl: 'https://i.ibb.co/JRXMdc1j/image.png' },
+            { title: '白物への黒いゴミ付着', keywords: ['白物', 'ゴミ', 'カッター', 'ガムテープ', 'シャツ', 'ニット', '繊維', '毛玉', '付着'], imageUrl: 'https://i.ibb.co/8Drq5yNt/image.png' },
+            { title: 'シール残の確認', keywords: ['シール残', '遅れ', '納期', '工場連絡', '未入荷', '探す', '確認'], imageUrl: 'https://i.ibb.co/TMxdFGWC/image.png' },
+            { title: 'シール貼りの注意点', keywords: ['シール貼り', '見間違い', 'ダブルチェック', '上下物', '番号', '店番', '間違い', '渡し間違い'], imageUrl: 'https://i.ibb.co/Q7dCZSs0/image.png' },
+            { title: 'しまい込み包装', keywords: ['しまい込み', '不織布', '防虫', '防カビ', 'カバー', '保管', '長期保管', 'オプション'], imageUrl: 'https://i.ibb.co/TB8jNhdw/image.png' },
+            { title: '復元加工・シミ抜き', keywords: ['復元', 'シミ抜き', '後払い', '見積もり', '変色', '白化', 'ネクタイ', '料金'], imageUrl: 'https://i.ibb.co/8L6gNQ02/image.png' },
+            { title: '仕上がりを見てからシミ抜き', keywords: ['シミ抜き', '後から', '料金発生', '通常洗い', 'キャンセル', '溶剤'], imageUrl: 'https://i.ibb.co/rGXLvfK1/image.png' },
+            { title: 'シミ抜きできるか見てほしい', keywords: ['シミ抜き', '落ちる', '見積もり', '元通り', '質問', '説明', '新品同様'], imageUrl: 'https://i.ibb.co/Rp5gVRVs/image.png' },
+            { title: 'ジャンパー類', keywords: ['ジャンパー', '裏地', 'ほつれ', '破れ', '事前説明', '補修'], imageUrl: 'https://i.ibb.co/vCVkBxHr/image.png' },
+            { title: 'シロセット加工', keywords: ['シロセット', '折り目', 'ズボン', 'ウール', '紳士', 'ポリエステル不可', '雨'], imageUrl: 'https://i.ibb.co/hQX8jDk/image.png' },
+            { title: 'スパンコール', keywords: ['スパンコール', '接着', '取れる', 'ボンド', '剥離', '特殊品'], imageUrl: 'https://i.ibb.co/BV4brCW1/image.png' },
+            { title: '時間が空いた時は', keywords: ['空き時間', 'レーン', 'ポップ', 'ハンガー', '油', 'データ分析', '整理'], imageUrl: 'https://i.ibb.co/9m3dDrPZ/image.png' },
+            { title: 'タタミ仕上げ', keywords: ['タタミ', 'たたみ', '白タック', 'カッターシャツ', 'ワイシャツ', '追加料金'], imageUrl: 'https://i.ibb.co/KSB47k1/image.png' },
+            { title: 'タック取れの品物', keywords: ['タック取れ', '紛失', 'ノート', '弁償', '持ち主不明', '記録', '誤返却'], imageUrl: 'https://i.ibb.co/pj64R8JW/image.png' },
+            { title: 'タックを付ける場所', keywords: ['タック', '場所', '襟', 'ボタンホール', 'ダウン', '上着', 'ズボン', 'スカート', 'シャツ', '浴衣'], imageUrl: 'https://i.ibb.co/LDzX7qNP/image.png' },
+            { title: 'タックの付けられないデリケート品', keywords: ['デリケート', '穴', '紙袋', '針', 'レース', 'タグなし'], imageUrl: 'https://i.ibb.co/nsgyYSpB/image.png' },
+            { title: 'タック付け違いのシール', keywords: ['タック違い', '付け間違い', '赤ペン', '品名', 'シール', '番号'], imageUrl: 'https://i.ibb.co/RkT1k19G/image.png' },
+            { title: 'デリケート品', keywords: ['デリケート', 'レース', '布袋', 'オーガンジー', '糸引き', '検品'], imageUrl: 'https://i.ibb.co/3QKSMP1/image.png' },
+            { title: '「のり」の指定', keywords: ['のりなし', 'のり固く', '追加料金', 'のり強く', 'カッターシャツ', '浴衣', 'シーツ', 'ブルー', '別袋'], imageUrl: 'https://i.ibb.co/cSns6GCk/image.png' },
+            { title: 'プリーツスカート', keywords: ['プリーツ', 'ヒダ', 'アコーディオン', 'スカート', 'ウール', '取れる', '追金', 'ハンガー'], imageUrl: 'https://i.ibb.co/Q5n22hh/image.png' },
+            { title: 'ズボンファスナー', keywords: ['ファスナー', '黄変', '尿', '腐食', '消耗品', 'おしっこ', 'プラスチック', '変色', 'サビ'], imageUrl: 'https://i.ibb.co/5gxX7JMj/image.png' },
+            { title: 'ボタン･ファスナーの扱い', keywords: ['ボタン', 'ファスナー', '外す', '上げる', 'ダブルファスナー', '基本ルール'], imageUrl: 'https://i.ibb.co/XxHS2Bx0/image.png' },
+            { title: 'ボタンの確認', keywords: ['ボタン', '割れ', '欠け', '弁償', '破損', '溶ける', '色が出る', '高級ボタン', '貝殻', 'ホイル'], imageUrl: 'https://i.ibb.co/s9Nt5Njc/image.png' },
+            { title: 'ポリウレタン加工品', keywords: ['ポリウレタン', 'PU', '寿命', '劣化', '加水分解', '製造', '合成皮革', 'ジャンパー', '3年'], imageUrl: 'https://i.ibb.co/yFxmWkDh/image.png' },
+            { title: 'パンツ･スカートの仕上げライン', keywords: ['ライン', 'ヒダ', 'プリーツ', '補助タック', 'ズボン', 'スカート'], imageUrl: 'https://i.ibb.co/FLJ76649/image.png' },
+            { title: 'レジが故障した時', keywords: ['レジ', '故障', 'クイック伝票', '手書き', '使用不能', '工場連絡'], imageUrl: 'https://i.ibb.co/Y7WP0V3b/image.png' },
+            { title: '引換券なしでの来店', keywords: ['引換券なし', '券なし', 'サイン', '忘れた', '紛失', '本人確認', 'フルネーム'], imageUrl: 'https://i.ibb.co/8n3NNcTs/image.png' },
+            { title: '園帽子（夏用）', keywords: ['園帽子', '帽子', '黄ばみ', '黒ずみ', 'シミ抜きカード', '夏用', '手垢', '裏返し'], imageUrl: 'https://i.ibb.co/PZK2nk6r/image.png' },
+            { title: '緊急時対応：火災', keywords: ['緊急', '火事', '火災', '119番', '避難', '消防', '消火器', '通報'], imageUrl: 'https://i.ibb.co/wNnCMBQD/image.png' },
+            { title: '外注品', keywords: ['外注', 'カーペット', '絨毯', '綿布団', '納期', '見積もり', '赤い布', 'ラグ', '玄関マット', '繁忙期'], imageUrl: 'https://i.ibb.co/1fLhqQtf/image.png' },
+            { title: '「確」の処理', keywords: ['確', '確認', 'トラブル', '電話', '工場', '連絡', '引き取り'], imageUrl: 'https://i.ibb.co/7J7xjctm/image.png' },
+            { title: '官服シャツ', keywords: ['官服', 'シャツ', 'ワッペン', 'ポリウレタン', '寿命', '剥がれ', '割れ', '始末書'], imageUrl: 'https://i.ibb.co/Lh276ywn/image.png' },
+            { title: '急ぎ対応', keywords: ['急ぎ', 'ピンクタック', '特急料金', '納期', '赤い布', '白いネット', '布団', 'シミ抜き', '土日祝'], imageUrl: 'https://i.ibb.co/1YR3LC2N/image.png' },
+            { title: '緊急時対応：基本', keywords: ['緊急', '安全', '住所', '電話番号', '消火器', '命', '消防', '警察'], imageUrl: 'https://i.ibb.co/Psv0p6QS/image.png' },
+            { title: '緊急時対応：車両突入・不審者', keywords: ['緊急', '事故', '不審者', '110番', '警察', '車', '突っ込んだ', '泥棒', '強盗'], imageUrl: 'https://i.ibb.co/YFn0Bvd9/image.png' },
+            { title: '仕上がり品の穴', keywords: ['穴', 'コゲ穴', 'ストーブ', 'バッテリー液', '虫食い', '焦げ', '破損', '原因'], imageUrl: 'https://i.ibb.co/W4DyK65W/image.png' },
+            { title: '受付後の検品', keywords: ['検品', '破れ', 'ほつれ', '連絡', '了解済', 'シール帳', '自己判断', 'クレーム', '記録'], imageUrl: 'https://i.ibb.co/Zp8s0ZKw/image.png' },
+            { title: '抗菌・防臭加工', keywords: ['抗菌', '防臭', '布団', 'カーペット', '若草色', 'オプション', 'ダニ', '料金'], imageUrl: 'https://i.ibb.co/v6Tp489g/image.png' },
+            { title: '子供の着物・長じゅばん', keywords: ['着物', '長じゅばん', '子供', 'あげ', '見積もり', '七五三', 'セット', '黄変', '追金'], imageUrl: 'https://i.ibb.co/Q7KzqgQ9/image.png' },
+            { title: '事業年度と決算月', keywords: ['事業年度', '決算', '8月', '未収金', '会計', '月末処理'], imageUrl: 'https://i.ibb.co/g53x56m/image.png' },
+            { title: '就業時間', keywords: ['就業', '休憩', '出勤', '時間', 'ルール', 'トイレ'], imageUrl: 'https://i.ibb.co/KjndDdGz/image.png' },
+            { title: '新品（初出し品）', keywords: ['新品', '初洗い', '変化', '型崩れ', '風合い', '加工剤', 'タック'], imageUrl: 'https://i.ibb.co/HDyJr7mZ/image.png' },
+            { title: '小物', keywords: ['小物', 'ベルト', '肩パット', '白いネット', 'なし', '付属品', '紛失防止', '補助タック'], imageUrl: 'https://i.ibb.co/M5Q819Mw/image.png' },
+            { title: '上下物の確認', keywords: ['上下', 'セット', '半券', '組み合わせ', 'スーツ', '確認', 'シール残り'], imageUrl: 'https://i.ibb.co/tTpL0Xky/image.png' },
+            { title: '働く上での心構え', keywords: ['心構え', '目標', 'コスト', 'フォロー', '一般', '接客', '会話'], imageUrl: 'https://i.ibb.co/twcyGD77/image.png' },
+            { title: '針の点検', keywords: ['針', '安全管理', '紛失', '異物混入', '点検', '本数管理'], imageUrl: 'https://i.ibb.co/SXZjdBVB/image.png' },
+            { title: '特殊品の選別', keywords: ['選別', '送り方', '袋', 'ダウン', '着物', '工場', 'カビ', '毛布', '絨毯'], imageUrl: 'https://i.ibb.co/0p6QZF91/image.png' },
+            { title: '緊急時対応：台風', keywords: ['緊急', '台風', '閉店', '浸水', '早退', '張り紙', '対策'], imageUrl: 'https://i.ibb.co/HprZB69L/image.png' },
+            { title: '開店時間に間に合わない時', keywords: ['遅刻', '開店', '鍵忘れ', '事故', '主任', '連絡', '事務所', '張り紙'], imageUrl: 'https://i.ibb.co/hxBvqPZB/image.png' },
+            { title: '特殊品', keywords: ['特殊品', '合皮', 'シルク', 'ハンドメイド', '黄色タック', 'オーダーメイド', '洗濯表示', '説明'], imageUrl: 'https://i.ibb.co/93nLw3pY/image.png' },
+            { title: '特別洗い', keywords: ['特別洗い', '3割増', '手仕上げ', 'ワンランク', 'シャツ', '料金'], imageUrl: 'https://i.ibb.co/x8zYSdsg/image.png' },
+            { title: '買い替えの提案', keywords: ['買い替え', 'シミ抜き', '高額', '満足', '提案', 'コスト', '制服'], imageUrl: 'https://i.ibb.co/mC09b2q2/image.png' },
+            { title: '備品の詳細', keywords: ['クリーニングペン', '未収金伝票', 'ペン', 'シミ抜き納品請求書'], imageUrl: 'https://i.ibb.co/rTbM7Nz/image.png' },
+            { title: '品物が見つからない時', keywords: ['紛失', '見つからない', '探す', '謝罪', '不明', 'お客様対応', '約束'], imageUrl: 'https://i.ibb.co/d4dqWvQY/image.png' },
+            { title: '付属品', keywords: ['付属品', 'フード', 'ベルト', '本タック', '予備タック', 'インナー', 'ファー', 'ファスナー', '紛失'], imageUrl: 'https://i.ibb.co/DSTWWqG/image.png' },
+            { title: '補助タック', keywords: ['補助タック', '予備タック', '書き方', 'ライン', 'キズ', '注意'], imageUrl: 'https://i.ibb.co/3mry6WLK/image.png' },
+            { title: '補正・修理', keywords: ['補正', '修理', '丈つめ', 'ファスナー交換', 'ウエスト', 'かけはぎ', '伝票'], imageUrl: 'https://i.ibb.co/DDtmy2ct/image.png' },
+            { title: '毛玉取り', keywords: ['毛玉', '500円', '料金', '仕上がり'], imageUrl: 'https://i.ibb.co/yBFs9fNc/image.png' },
+            { title: '料金が分からない時', keywords: ['料金', '不明', '見積もり', '特殊', '記録'], imageUrl: 'https://i.ibb.co/ZzgN17JK/image.png' },
+            { title: '嘔吐物', keywords: ['嘔吐', 'げろ', 'ゲロ', '衛生', 'お断り', '自家処理', '料金', 'リスク', '乾燥'], imageUrl: 'https://i.ibb.co/B5FqwyG0/image.png' },
+            { title: '撥水加工', keywords: ['撥水', '中止', '防水'], imageUrl: 'https://i.ibb.co/RkLFs8dR/image.png' }
+        ];
+
+        // 各要素を取得
+        const searchView = document.getElementById('search-view');
+        const viewerView = document.getElementById('viewer-view');
+        const searchInput = document.getElementById('searchInput');
+        const resultsContainer = document.getElementById('results');
+        const noResults = document.getElementById('no-results');
+        const manualTitle = document.getElementById('manualTitle');
+        const manualImage = document.getElementById('manualImage');
+        const backButton = document.getElementById('backButton');
+
+        /**
+         * 文字列に含まれるカタカナをひらがなに変換する関数
+         * @param {string} str 変換したい文字列
+         * @returns {string} ひらがなに変換された文字列
+         */
+        function katakanaToHiragana(str) {
+            return str.replace(/[\u30a1-\u30f6]/g, function(match) {
+                const chr = match.charCodeAt(0) - 0x60;
+                return String.fromCharCode(chr);
+            });
+        }
+
+        // 検索結果を表示する関数
+        function displayResults(query) {
+            resultsContainer.innerHTML = '';
+            const hiraganaQuery = katakanaToHiragana(query.toLowerCase().trim());
+
+            if (hiraganaQuery === '') {
+                noResults.classList.add('hidden');
+                resultsContainer.classList.add('hidden');
+                return;
+            }
+            resultsContainer.classList.remove('hidden');
+
+            const filteredManuals = manuals.filter(manual => {
+                const hiraganaTitle = katakanaToHiragana(manual.title.toLowerCase());
+                const hasKeyword = manual.keywords.some(keyword => 
+                    katakanaToHiragana(keyword.toLowerCase()).includes(hiraganaQuery)
+                );
+                return hiraganaTitle.includes(hiraganaQuery) || hasKeyword;
+            });
+
+            noResults.classList.toggle('hidden', filteredManuals.length > 0);
+
+            filteredManuals.forEach(manual => {
+                const manualElement = document.createElement('a');
+                manualElement.href = '#';
+                manualElement.className = 'manual-link block bg-white p-4 rounded-lg shadow-md hover:bg-slate-50 transition-colors duration-200';
+                manualElement.dataset.imageUrl = manual.imageUrl;
+                manualElement.dataset.title = manual.title;
+                manualElement.innerHTML = `<h3 class="font-bold text-md text-slate-800">${manual.title}</h3>`;
+                resultsContainer.appendChild(manualElement);
+            });
+        }
+
+        // 検索入力イベント
+        searchInput.addEventListener('input', (e) => {
+            displayResults(e.target.value);
+        });
+
+        // 検索結果のクリックイベント（イベント移譲）
+        resultsContainer.addEventListener('click', (e) => {
+            const link = e.target.closest('.manual-link');
+            if (link) {
+                e.preventDefault();
+                const imageUrl = link.dataset.imageUrl;
+                const title = link.dataset.title;
+                
+                manualTitle.textContent = title;
+                manualImage.src = imageUrl;
+                manualImage.alt = title;
+
+                searchView.classList.add('hidden');
+                viewerView.classList.remove('hidden');
+                window.scrollTo(0, 0); // ページトップにスクロール
+            }
+        });
+
+        // 戻るボタンのクリックイベント
+        backButton.addEventListener('click', () => {
+            viewerView.classList.add('hidden');
+            searchView.classList.remove('hidden');
+        });
+
+        // 初期状態では結果を非表示
+        resultsContainer.classList.add('hidden');
+    </script>
+</body>
+</html>
+
