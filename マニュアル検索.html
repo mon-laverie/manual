@@ -176,13 +176,26 @@
             }
             resultsContainer.classList.remove('hidden');
 
-            const filteredManuals = manuals.filter(manual => {
-                const hiraganaTitle = katakanaToHiragana(manual.title.toLowerCase());
-                const hasKeyword = manual.keywords.some(keyword => 
-                    katakanaToHiragana(keyword.toLowerCase()).includes(hiraganaQuery)
-                );
-                return hiraganaTitle.includes(hiraganaQuery) || hasKeyword;
-            });
+            const filteredManuals = manuals
+                .filter(manual => {
+                    const hiraganaTitle = katakanaToHiragana(manual.title.toLowerCase());
+                    const hasKeyword = manual.keywords.some(keyword => 
+                        katakanaToHiragana(keyword.toLowerCase()).includes(hiraganaQuery)
+                    );
+                    return hiraganaTitle.includes(hiraganaQuery) || hasKeyword;
+                })
+                .sort((a, b) => {
+                    const aTitleMatch = katakanaToHiragana(a.title.toLowerCase()).includes(hiraganaQuery);
+                    const bTitleMatch = katakanaToHiragana(b.title.toLowerCase()).includes(hiraganaQuery);
+
+                    if (aTitleMatch && !bTitleMatch) {
+                        return -1; // aをbより前に
+                    }
+                    if (!aTitleMatch && bTitleMatch) {
+                        return 1; // bをaより前に
+                    }
+                    return 0; // 順序を変えない
+                });
 
             noResults.classList.toggle('hidden', filteredManuals.length > 0);
 
