@@ -88,6 +88,36 @@
         const manualImage = document.getElementById('manualImage');
         const backButton = document.getElementById('backButton');
         const loadingIndicator = document.getElementById('loading');
+        
+        /**
+         * CSVの1行をパースする関数（引用符対応）
+         * @param {string} row - CSVの1行
+         * @returns {string[]} 分割された列の配列
+         */
+        function parseCsvRow(row) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            for (let i = 0; i < row.length; i++) {
+                const char = row[i];
+                const nextChar = row[i + 1];
+
+                if (char === '"' && inQuotes && nextChar === '"') {
+                    current += '"';
+                    i++; // Skip next quote
+                } else if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current);
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            result.push(current);
+            return result.map(val => val.trim());
+        }
+
 
         // CSVデータをフェッチしてパースする関数
         async function fetchManuals() {
@@ -105,16 +135,21 @@
                 const csvText = await response.text();
                 
                 // CSVをパースしてmanuals配列に格納
-                const rows = csvText.split('\n').slice(1); // ヘッダー行をスキップ
+                const rows = csvText.split(/\r\n|\n/).slice(1); // ヘッダー行をスキップ
                 manuals = rows.map(row => {
-                    const columns = row.split(',');
+                    if (!row.trim()) return null; // 空の行をスキップ
+
+                    const columns = parseCsvRow(row);
+                    
+                    if (columns.length < 3) return null; // 列が足りない行はスキップ
+
                     // title,keywords,imageUrlの順
                     return {
-                        title: columns[0] ? columns[0].trim() : '',
-                        keywords: columns[1] ? columns[1].trim().split('、').map(k => k.trim()) : [], // 全角カンマなどで分割
-                        imageUrl: columns[2] ? columns[2].trim() : ''
+                        title: columns[0] || '',
+                        keywords: columns[1] ? columns[1].split(',').map(k => k.trim()) : [],
+                        imageUrl: columns[2] || ''
                     };
-                }).filter(m => m.title && m.imageUrl); // titleとimageUrlがあるものだけ
+                }).filter(m => m && m.title && m.imageUrl); // nullや無効なデータをフィルタリング
 
             } catch (error) {
                 console.error('マニュアルデータの読み込みに失敗しました:', error);
