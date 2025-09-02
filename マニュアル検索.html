@@ -13,7 +13,7 @@
             font-family: 'Noto Sans JP', sans-serif;
         }
         #searchInput:focus {
-            box-shadow: 0 0 0 2px #3b82f6;
+            box-shadow: 0 0 0 2px #3b82f6; /* blue-500 */
             outline: none;
         }
         .loader {
@@ -35,8 +35,8 @@
     <!-- 検索画面 -->
     <div id="search-view" class="container mx-auto p-4 max-w-3xl">
         <header class="text-center my-6">
-            <h1 class="text-3xl font-bold text-slate-800">業務マニュアル検索</h1>
-            <p class="text-slate-500 mt-2">キーワードでマニュアルを検索できます</p>
+            <h1 class="text-3xl font-bold text-slate-800">クリーニングの太陽舎</h1>
+            <p class="text-slate-500 mt-2">Staff Manual</p>
         </header>
 
         <main>
@@ -51,7 +51,7 @@
                 <div class="loader inline-block"></div>
                 <p class="mt-4 text-lg">マニュアルデータを読み込み中...</p>
             </div>
-            <div id="results" class="space-y-2"></div>
+            <div id="results" class="space-y-4"></div>
             <div id="no-results" class="text-center py-12 text-slate-500 hidden">
                 <p class="text-lg">該当するマニュアルが見つかりませんでした。</p>
             </div>
@@ -104,7 +104,7 @@
 
                 if (char === '"' && inQuotes && nextChar === '"') {
                     current += '"';
-                    i++; // Skip next quote
+                    i++;
                 } else if (char === '"') {
                     inQuotes = !inQuotes;
                 } else if (char === ',' && !inQuotes) {
@@ -123,7 +123,6 @@
         async function fetchManuals() {
             if (CSV_URL === 'ここに公開したスプレッドシートのURLを貼り付け') {
                 resultsContainer.innerHTML = '<p class="text-center text-red-500">エラー: スプレッドシートのURLが設定されていません。</p>';
-                resultsContainer.classList.remove('hidden');
                 return;
             }
             
@@ -134,27 +133,24 @@
                 const response = await fetch(CSV_URL);
                 const csvText = await response.text();
                 
-                // CSVをパースしてmanuals配列に格納
-                const rows = csvText.split(/\r\n|\n/).slice(1); // ヘッダー行をスキップ
+                const rows = csvText.split(/\r\n|\n/).slice(1);
                 manuals = rows.map(row => {
-                    if (!row.trim()) return null; // 空の行をスキップ
-
+                    if (!row.trim()) return null;
                     const columns = parseCsvRow(row);
-                    
-                    if (columns.length < 3) return null; // 列が足りない行はスキップ
-
-                    // title,keywords,imageUrlの順
+                    if (columns.length < 4) return null;
                     return {
-                        title: columns[0] || '',
-                        keywords: columns[1] ? columns[1].split(',').map(k => k.trim()) : [],
-                        imageUrl: columns[2] || ''
+                        category: columns[0] || 'その他',
+                        title: columns[1] || '',
+                        keywords: columns[2] ? columns[2].split(',').map(k => k.trim()) : [],
+                        imageUrl: columns[3] || ''
                     };
-                }).filter(m => m && m.title && m.imageUrl); // nullや無効なデータをフィルタリング
+                }).filter(m => m && m.title && m.imageUrl);
+                
+                displayResults('');
 
             } catch (error) {
                 console.error('マニュアルデータの読み込みに失敗しました:', error);
                 resultsContainer.innerHTML = '<p class="text-center text-red-500">エラー: マニュアルデータの読み込みに失敗しました。URLや共有設定を確認してください。</p>';
-                resultsContainer.classList.remove('hidden');
             } finally {
                 loadingIndicator.classList.add('hidden');
                 searchInput.disabled = false;
@@ -169,50 +165,87 @@
             resultsContainer.innerHTML = '';
             const hiraganaQuery = katakanaToHiragana(query.toLowerCase().trim());
 
+            // 検索バーが空の場合、カテゴリー別のアコーディオン表示
             if (hiraganaQuery === '') {
-                noResults.classList.add('hidden');
-                resultsContainer.classList.add('hidden');
-                return;
-            }
-            resultsContainer.classList.remove('hidden');
+                const groupedByCategory = manuals.reduce((acc, manual) => {
+                    const category = manual.category || 'その他';
+                    if (!acc[category]) acc[category] = [];
+                    acc[category].push(manual);
+                    return acc;
+                }, {});
 
-            const filteredManuals = manuals
-                .filter(manual => {
+                noResults.classList.add('hidden');
+                const sortedCategories = Object.keys(groupedByCategory).sort();
+
+                for (const category of sortedCategories) {
+                    const manualsInCategory = groupedByCategory[category];
+                    const categoryBlock = document.createElement('div');
+                    categoryBlock.className = 'bg-white rounded-lg overflow-hidden border border-slate-200';
+
+                    const headerButton = document.createElement('button');
+                    headerButton.type = 'button';
+                    headerButton.className = 'category-toggle w-full p-4 text-left flex justify-between items-center bg-slate-50 hover:bg-slate-100 transition-colors';
+                    headerButton.innerHTML = `<h2 class="text-lg font-bold text-slate-800">${category}</h2><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="transform transition-transform duration-300 text-slate-500"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+                    
+                    const listContainer = document.createElement('div');
+                    listContainer.className = 'manual-list hidden bg-slate-100 p-4 pt-2 space-y-2';
+                    manualsInCategory.forEach(manual => {
+                        const manualElement = document.createElement('a');
+                        manualElement.href = '#';
+                        manualElement.className = 'manual-link block bg-white p-3 rounded-md hover:bg-slate-50 transition-colors duration-200';
+                        manualElement.dataset.imageUrl = manual.imageUrl;
+                        manualElement.dataset.title = manual.title;
+                        manualElement.innerHTML = `<h3 class="font-medium text-sm text-slate-800">${manual.title}</h3>`;
+                        listContainer.appendChild(manualElement);
+                    });
+
+                    categoryBlock.appendChild(headerButton);
+                    categoryBlock.appendChild(listContainer);
+                    resultsContainer.appendChild(categoryBlock);
+                }
+            } else {
+                // 検索された場合、フラットなリスト表示
+                const filteredManuals = manuals.filter(manual => {
                     const hiraganaTitle = katakanaToHiragana(manual.title.toLowerCase());
+                    const hiraganaCategory = katakanaToHiragana(manual.category.toLowerCase());
                     const hasKeyword = manual.keywords.some(keyword => 
                         katakanaToHiragana(keyword.toLowerCase()).includes(hiraganaQuery)
                     );
-                    return hiraganaTitle.includes(hiraganaQuery) || hasKeyword;
-                })
-                .sort((a, b) => {
+                    return hiraganaTitle.includes(hiraganaQuery) || hasKeyword || hiraganaCategory.includes(hiraganaQuery);
+                }).sort((a, b) => {
                     const aTitleMatch = katakanaToHiragana(a.title.toLowerCase()).includes(hiraganaQuery);
                     const bTitleMatch = katakanaToHiragana(b.title.toLowerCase()).includes(hiraganaQuery);
-
-                    if (aTitleMatch && !bTitleMatch) {
-                        return -1; // aをbより前に
-                    }
-                    if (!aTitleMatch && bTitleMatch) {
-                        return 1; // bをaより前に
-                    }
-                    return 0; // 順序を変えない
+                    if (aTitleMatch && !bTitleMatch) return -1;
+                    if (!aTitleMatch && bTitleMatch) return 1;
+                    return 0;
                 });
 
-            noResults.classList.toggle('hidden', filteredManuals.length > 0);
+                noResults.classList.toggle('hidden', filteredManuals.length > 0);
 
-            filteredManuals.forEach(manual => {
-                const manualElement = document.createElement('a');
-                manualElement.href = '#';
-                manualElement.className = 'manual-link block bg-white p-4 rounded-lg shadow-md hover:bg-slate-50 transition-colors duration-200';
-                manualElement.dataset.imageUrl = manual.imageUrl;
-                manualElement.dataset.title = manual.title;
-                manualElement.innerHTML = `<h3 class="font-bold text-md text-slate-800">${manual.title}</h3>`;
-                resultsContainer.appendChild(manualElement);
-            });
+                filteredManuals.forEach(manual => {
+                    const manualElement = document.createElement('a');
+                    manualElement.href = '#';
+                    manualElement.className = 'manual-link block bg-white p-4 rounded-lg overflow-hidden border border-slate-200 hover:bg-slate-50 transition-colors';
+                    manualElement.dataset.imageUrl = manual.imageUrl;
+                    manualElement.dataset.title = manual.title;
+                    manualElement.innerHTML = `<h3 class="font-bold text-md text-slate-800">${manual.title}</h3>`;
+                    resultsContainer.appendChild(manualElement);
+                });
+            }
         }
 
         searchInput.addEventListener('input', (e) => displayResults(e.target.value));
 
         resultsContainer.addEventListener('click', (e) => {
+            const toggleButton = e.target.closest('.category-toggle');
+            if (toggleButton) {
+                const list = toggleButton.nextElementSibling;
+                const icon = toggleButton.querySelector('svg');
+                list.classList.toggle('hidden');
+                icon.classList.toggle('rotate-180');
+                return;
+            }
+            
             const link = e.target.closest('.manual-link');
             if (link) {
                 e.preventDefault();
@@ -230,10 +263,7 @@
             searchView.classList.remove('hidden');
         });
 
-        // ページ読み込み時にマニュアルデータを取得
         document.addEventListener('DOMContentLoaded', fetchManuals);
-
-        resultsContainer.classList.add('hidden');
     </script>
 </body>
 </html>
