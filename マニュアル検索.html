@@ -71,10 +71,13 @@
         </div>
     </div>
 
-    <script>
+  <script>
         // ▼▼▼▼▼ ここに公開したスプレッドシートのURLを貼り付け ▼▼▼▼▼
         const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRXmlTf0L3fTBmD-75YDkDDB4o4bNBkgw62bBNlTJjJDDLOpbaRhh3u-8ssXLGGJE89mPHDOIhA906X/pub?gid=0&single=true&output=csv';
         // ▲▲▲▲▲ ここに公開したスプレッドシートのURLを貼り付け ▲▲▲▲▲
+
+        // ★変更点1: 画像が格納されているフォルダへのパスを定数として定義
+        const IMAGE_BASE_PATH = './images/';
 
         let manuals = [];
 
@@ -142,7 +145,7 @@
                         category: columns[0] || 'その他',
                         title: columns[1] || '',
                         keywords: columns[2] ? columns[2].split(',').map(k => k.trim()) : [],
-                        imageUrl: columns[3] || ''
+                        imageUrl: columns[3] || '' // ここはファイル名が取得される
                     };
                 }).filter(m => m && m.title && m.imageUrl);
                 
@@ -185,7 +188,7 @@
                     const headerButton = document.createElement('button');
                     headerButton.type = 'button';
                     headerButton.className = 'category-toggle w-full p-4 text-left flex justify-between items-center bg-slate-50 hover:bg-slate-100 transition-colors';
-                    headerButton.innerHTML = `<h2 class="text-lg font-bold text-slate-800">${category}</h2><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="transform transition-transform duration-300 text-slate-500"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+                    headerButton.innerHTML = `<h2 class="text-lg font-bold text-slate-800">${category}</h2><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="transform transition-transform duration-300 text-slate-500"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
                     
                     const listContainer = document.createElement('div');
                     listContainer.className = 'manual-list hidden bg-slate-100 p-4 pt-2 space-y-2';
@@ -250,8 +253,16 @@
             if (link) {
                 e.preventDefault();
                 manualTitle.textContent = link.dataset.title;
-                manualImage.src = link.dataset.imageUrl;
+                
+                // ★変更点2: ここでパスとファイル名を結合して、完全な画像パスを生成する
+                const imageFileName = link.dataset.imageUrl;
+                manualImage.src = IMAGE_BASE_PATH + imageFileName;
+
                 manualImage.alt = link.dataset.title;
+                
+                // ★変更点3: 表示パフォーマンス向上のため、画像の遅延読み込みを追加
+                manualImage.loading = 'lazy'; 
+
                 searchView.classList.add('hidden');
                 viewerView.classList.remove('hidden');
                 window.scrollTo(0, 0);
@@ -267,4 +278,5 @@
     </script>
 </body>
 </html>
+
 
