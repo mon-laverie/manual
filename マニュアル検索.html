@@ -32,7 +32,6 @@
 </head>
 <body class="bg-slate-100">
 
-    <!-- 検索画面 -->
     <div id="search-view" class="container mx-auto p-4 max-w-3xl">
         <header class="text-center my-6">
             <h1 class="text-3xl font-bold text-slate-800">クリーニングの太陽舎</h1>
@@ -58,7 +57,6 @@
         </main>
     </div>
 
-    <!-- 画像表示画面 (最初は非表示) -->
     <div id="viewer-view" class="hidden min-h-screen p-4 flex flex-col items-center justify-start">
          <header class="w-full max-w-lg text-center my-6 relative">
             <button id="backButton" class="absolute left-0 top-1/2 -translate-y-1/2 bg-slate-200 hover:bg-slate-300 rounded-full p-2 transition-colors">
@@ -71,12 +69,12 @@
         </div>
     </div>
 
-  <script>
+    <script>
         // ▼▼▼▼▼ ここに公開したスプレッドシートのURLを貼り付け ▼▼▼▼▼
         const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRXmlTf0L3fTBmD-75YDkDDB4o4bNBkgw62bBNlTJjJDDLOpbaRhh3u-8ssXLGGJE89mPHDOIhA906X/pub?gid=0&single=true&output=csv';
         // ▲▲▲▲▲ ここに公開したスプレッドシートのURLを貼り付け ▲▲▲▲▲
 
-        // ★変更点1: 画像が格納されているフォルダへのパスを定数として定義
+        // GitHubリポジトリ内の画像フォルダへのパス
         const IMAGE_BASE_PATH = './images/';
 
         let manuals = [];
@@ -94,8 +92,6 @@
         
         /**
          * CSVの1行をパースする関数（引用符対応）
-         * @param {string} row - CSVの1行
-         * @returns {string[]} 分割された列の配列
          */
         function parseCsvRow(row) {
             const result = [];
@@ -121,10 +117,9 @@
             return result.map(val => val.trim());
         }
 
-
         // CSVデータをフェッチしてパースする関数
         async function fetchManuals() {
-            if (CSV_URL === 'ここに公開したスプレッドシートのURLを貼り付け') {
+            if (CSV_URL.includes('ここに公開したスプレッドシートのURLを貼り付け')) {
                 resultsContainer.innerHTML = '<p class="text-center text-red-500">エラー: スプレッドシートのURLが設定されていません。</p>';
                 return;
             }
@@ -133,7 +128,8 @@
             searchInput.disabled = true;
 
             try {
-                const response = await fetch(CSV_URL);
+                // キャッシュを回避するために、URLに現在時刻のパラメータを追加
+                const response = await fetch(`${CSV_URL}&t=${new Date().getTime()}`);
                 const csvText = await response.text();
                 
                 const rows = csvText.split(/\r\n|\n/).slice(1);
@@ -145,7 +141,7 @@
                         category: columns[0] || 'その他',
                         title: columns[1] || '',
                         keywords: columns[2] ? columns[2].split(',').map(k => k.trim()) : [],
-                        imageUrl: columns[3] || '' // ここはファイル名が取得される
+                        imageUrl: columns[3] || ''
                     };
                 }).filter(m => m && m.title && m.imageUrl);
                 
@@ -168,8 +164,8 @@
             resultsContainer.innerHTML = '';
             const hiraganaQuery = katakanaToHiragana(query.toLowerCase().trim());
 
-            // 検索バーが空の場合、カテゴリー別のアコーディオン表示
             if (hiraganaQuery === '') {
+                // カテゴリー別のアコーディオン表示
                 const groupedByCategory = manuals.reduce((acc, manual) => {
                     const category = manual.category || 'その他';
                     if (!acc[category]) acc[category] = [];
@@ -178,9 +174,21 @@
                 }, {});
 
                 noResults.classList.add('hidden');
-                const sortedCategories = Object.keys(groupedByCategory).sort();
-
-                for (const category of sortedCategories) {
+                
+                // ★★★ 変更点 ★★★
+                // カテゴリーをスプレッドシートの登場順で取得する
+                const orderedCategories = [];
+                const categorySet = new Set();
+                manuals.forEach(manual => {
+                    const category = manual.category || 'その他';
+                    if (!categorySet.has(category)) {
+                        categorySet.add(category);
+                        orderedCategories.push(category);
+                    }
+                });
+                
+                // 変更点：ソート済みのキー配列の代わりに、登場順のカテゴリー配列でループする
+                for (const category of orderedCategories) {
                     const manualsInCategory = groupedByCategory[category];
                     const categoryBlock = document.createElement('div');
                     categoryBlock.className = 'bg-white rounded-lg overflow-hidden border border-slate-200';
@@ -192,6 +200,8 @@
                     
                     const listContainer = document.createElement('div');
                     listContainer.className = 'manual-list hidden bg-slate-100 p-4 pt-2 space-y-2';
+                    
+                    // カテゴリー内のマニュアルは、スプレッドシートの順番通りに表示される
                     manualsInCategory.forEach(manual => {
                         const manualElement = document.createElement('a');
                         manualElement.href = '#';
@@ -207,7 +217,7 @@
                     resultsContainer.appendChild(categoryBlock);
                 }
             } else {
-                // 検索された場合、フラットなリスト表示
+                // 検索結果のフラットなリスト表示
                 const filteredManuals = manuals.filter(manual => {
                     const hiraganaTitle = katakanaToHiragana(manual.title.toLowerCase());
                     const hiraganaCategory = katakanaToHiragana(manual.category.toLowerCase());
@@ -215,15 +225,9 @@
                         katakanaToHiragana(keyword.toLowerCase()).includes(hiraganaQuery)
                     );
                     return hiraganaTitle.includes(hiraganaQuery) || hasKeyword || hiraganaCategory.includes(hiraganaQuery);
-                }).sort((a, b) => {
-                    const aTitleMatch = katakanaToHiragana(a.title.toLowerCase()).includes(hiraganaQuery);
-                    const bTitleMatch = katakanaToHiragana(b.title.toLowerCase()).includes(hiraganaQuery);
-                    if (aTitleMatch && !bTitleMatch) return -1;
-                    if (!aTitleMatch && bTitleMatch) return 1;
-                    return 0;
                 });
 
-                noResults.classList.toggle('hidden', filteredManuals.length > 0);
+                noResults.classList.toggle('hidden', filteredManuals.length === 0);
 
                 filteredManuals.forEach(manual => {
                     const manualElement = document.createElement('a');
@@ -254,13 +258,9 @@
                 e.preventDefault();
                 manualTitle.textContent = link.dataset.title;
                 
-                // ★変更点2: ここでパスとファイル名を結合して、完全な画像パスを生成する
                 const imageFileName = link.dataset.imageUrl;
                 manualImage.src = IMAGE_BASE_PATH + imageFileName;
-
                 manualImage.alt = link.dataset.title;
-                
-                // ★変更点3: 表示パフォーマンス向上のため、画像の遅延読み込みを追加
                 manualImage.loading = 'lazy'; 
 
                 searchView.classList.add('hidden');
@@ -272,11 +272,10 @@
         backButton.addEventListener('click', () => {
             viewerView.classList.add('hidden');
             searchView.classList.remove('hidden');
+            manualImage.src = ""; // 戻るときに画像を空にする
         });
 
         document.addEventListener('DOMContentLoaded', fetchManuals);
     </script>
 </body>
 </html>
-
-
